@@ -1,0 +1,390 @@
+---
+title: "Cyclistic Case Study"
+author: "Miro Snejdr"
+date: "2022-09-10"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+I am a junior data analyst working in the marketing analyst team at
+Cyclistic, a bike-share company in Chicago. The director of marketing
+believes the company's future success depends on maximizing the number
+of annual memberships. Therefore, my team wants to understand how casual
+riders and annual members use Cyclistic bikes differently. From these
+insights, my team will design a new marketing strategy to convert casual
+riders into annual members. But first, Cyclistic executives must approve
+my recommendations, so they must be backed up with compelling data
+insights and professional data visualizations.
+
+## Data analysis steps for this project:
+
+-   Ask
+-   Prepare
+-   Process
+-   Analyze
+-   Share
+-   Act
+
+### Ask
+
+1\. How do annual members and casual riders use Cyclistic bikes
+differently?\
+2. Why would casual riders buy Cyclistic annual memberships?\
+3. How can Cyclistic use digital media to influence casual riders to
+become members?
+
+**Business task**
+
+The main objective is to build the best marketing strategies to turn
+casual bike riders into annual members by analyzing how the 'Casual' and
+'Annual' customers use Cyclistic bike share differently.
+
+### Prepare
+
+I will use Cyclistic's historical trip data to analyze and identify
+trends. The data has been made available by Motivate International Inc.
+under this [license](https://www.divvybikes.com/data-license-agreement).
+Datasets are available
+[here](https://divvy-tripdata.s3.amazonaws.com/index.html).\
+
+-   Download data: I'm going to use data for the last 12 months.
+-   Identify: each month is a separate .csv file.
+-   Determine credibility: these datasets are appropriate and will
+    enable to answer the business questions.
+
+**Installing and loading necessary packages**
+
+```{r}
+install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+install.packages("janitor", repos = "http://cran.us.r-project.org")
+install.packages("ggplot2", repos = "http://cran.us.r-project.org")
+install.packages("geosphere", repos = "http://cran.us.r-project.org")
+install.packages("lubridate", repos = "http://cran.us.r-project.org")
+library(tidyverse)
+library(janitor)
+library(ggmap)
+library(geosphere)
+library(lubridate)
+```
+
+**Importing our data in R studio**\
+<!-- we create a data frame for each month and use the read_csv function -->
+
+```{r}
+sep21 <- read_csv("202109-divvy-tripdata.csv")
+oct21 <- read_csv("202110-divvy-tripdata.csv")
+nov21 <- read_csv("202111-divvy-tripdata.csv")
+dec21 <- read_csv("202112-divvy-tripdata.csv")
+jan22 <- read_csv("202201-divvy-tripdata.csv")
+feb22 <- read_csv("202202-divvy-tripdata.csv")
+mar22 <- read_csv("202203-divvy-tripdata.csv")
+apr22 <- read_csv("202204-divvy-tripdata.csv")
+may22 <- read_csv("202205-divvy-tripdata.csv")
+jun22 <- read_csv("202206-divvy-tripdata.csv")
+jul22 <- read_csv("202207-divvy-tripdata.csv")
+aug22 <- read_csv("202208-divvy-tripdata.csv")
+```
+
+**Let's check the data to see if the column names and the data
+structures are consistent**\
+<!-- we use the colnames() and str() functions -->
+
+```{r}
+colnames(sep21)
+colnames(oct21)
+colnames(nov21)
+colnames(dec21)
+colnames(jan22)
+colnames(feb22)
+colnames(mar22)
+colnames(apr22)
+colnames(may22)
+colnames(jun22)
+colnames(jul22)
+colnames(aug22)
+```
+
+```{r}
+str(sep21)
+str(oct21)
+str(nov21)
+str(dec21)
+str(jan22)
+str(feb22)
+str(mar22)
+str(apr22)
+str(may22)
+str(jun22)
+str(jul22)
+str(aug22)
+```
+
+### Process
+
+**We can now merge all these montly data frames into a single large data
+frame called tripdata**\
+<!-- we use the bind_rows() function -->
+
+```{r}
+tripdata <- bind_rows(sep21, oct21, nov21, dec21, jan22, feb22, mar22, apr22, may22, jun22, jul22, aug22)
+```
+
+**Let's check our new dataframe**\
+<!-- we use the following functions: head(), tail(), str(), summary() -->
+
+```{r}
+head(tripdata)
+```
+
+```{r}
+str(tripdata)
+```
+
+```{r}
+summary(tripdata)
+```
+
+**Let's add some new columns by extracting date, month, year, day of the
+week into separate columns. We will use the started_at and ended_at
+columns for the extraction.**\
+<!-- we use the mutate() function -->\
+<!-- https://mgimond.github.io/ES218/Week02c.html -->
+
+```{r}
+tripdata <- tripdata %>% 
+mutate(year = format(as.Date(started_at), "%Y")) %>% # extract year, new column name is year
+mutate(month = format(as.Date(started_at), "%B")) %>% #extract month, new column name is month
+mutate(date = format(as.Date(started_at), "%d")) %>% # extract date, new column name is date
+mutate(day_of_week = format(as.Date(started_at), "%A")) %>% # extract day of week, new column name is day_of_week
+mutate(ride_length = difftime(ended_at, started_at)) %>% #extract ride length, new column name is ride_length
+mutate(start_time = strftime(started_at, "%H")) #extract start time, new column name is start_time
+
+#another way of creating a new column for year:
+#trip_data$year <- format(as.Date(trip_data$date), "%Y")
+#another way of creating a new column for ride_length:
+#trip_data$ride_length <- difftime(trip_data$ended_at, trip_data$started_at)
+```
+
+**Now we convert ride_length into the numeric type and check it. The
+value is in seconds.**
+
+```{r}
+tripdata <- tripdata %>% 
+  mutate(ride_length = as.numeric(ride_length))
+```
+
+```{r}
+is.numeric(tripdata$ride_length)
+```
+
+**Let's add the ride distance in km**\
+<!-- calculating the distance between start_lng, start_lan and end_lng, end_lat -->
+<!-- https://rdrr.io/cran/geosphere/man/distGeo.html -->
+<!-- https://www.statology.org/r-add-a-column-to-dataframe/ -->
+
+```{r}
+tripdata$ride_distance <- distGeo(matrix(c(tripdata$start_lng, tripdata$start_lat), ncol = 2), matrix(c(tripdata$end_lng, tripdata$end_lat), ncol = 2))
+```
+
+<!-- now we convert this value to km -->
+
+```{r}
+tripdata$ride_distance <- tripdata$ride_distance/1000
+```
+
+**We remove rows where the ride_length has a zero or negative value and
+name this cleaned data frame as tripdata_clean**\
+
+```{r}
+tripdata_clean <- tripdata[!(tripdata$ride_length <= 0),]
+```
+
+<!-- let's check our new dataframe -->
+
+```{r}
+str(tripdata_clean)
+```
+
+<!-- and a summary -->
+
+```{r}
+summary(tripdata_clean)
+```
+
+### Analyze
+
+We are now interested in an average ride length, longest and shortest
+rides.\
+
+```{r}
+tripdata_clean %>% 
+  summarise(average_ride_length = mean(ride_length),max_ride_length = max(ride_length), min_ride_length = min(ride_length))
+```
+
+<!-- How to display the minimal value for a particular column: min(dataframe$column) -->
+
+**Let's calculate the difference in total rides taken between members
+and casual users. The column member_casual contains the values member
+and casual.**
+
+```{r}
+tripdata_clean %>% 
+    group_by(member_casual) %>% #groups by the member_casual column
+    summarise(ride_count = n()) #counts all rows win ride_count column
+              
+```
+
+```{r}
+#we can also use the length function, here it calculates the length of the entire column ride_id
+#https://www.statology.org/length-function-in-r/
+
+tripdata_clean %>% 
+    group_by(member_casual) %>% #adds a member_casual column
+    summarise(ride_count=length(ride_id), ride_percentage = (length(ride_id) / nrow(tripdata_clean))*100)
+```
+
+**We can display the ratio of casuals vs members in number of rides**
+
+```{r}
+ggplot(tripdata_clean, aes(x = member_casual, fill=member_casual)) +
+    geom_bar() +
+    labs(x="Casuals vs Members", y="Number Of Rides", title= "Casuals vs Members Distribution") 
+
+```
+
+```{r}
+ggplot(tripdata_clean, aes(x = rideable_type, fill=member_casual)) +
+    geom_bar() +
+    labs(x="Rideable Type", y="Number of Rides", title= "Total Rides by Casuals and Members by Rideable Type") 
+
+```
+
+**Now let's do more calculations. Values will be displayed in minutes
+because we are dividing them by 60.**
+
+```{r}
+tripdata_clean %>%
+  group_by(member_casual) %>% 
+  summarise(average_ride_length = mean(ride_length) / 60, max_ride_length = max(ride_length) / 60, min_ride_length = min(ride_length) / 60)
+```
+
+### Conclusion 1
+
+Casuals are taking longer rides and fewer rides than members.\
+
+**We want to order the days from Monday to Sunday**
+
+<!-- tripdata_clean$day_of_week <- ordered(tripdata_clean$day_of_week,  -->
+
+<!--                                     levels=c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")) -->
+
+```{r}
+tripdata_clean %>% 
+  group_by(member_casual, day_of_week) %>%  #groups by member_casual
+  summarise(number_of_rides = n() #calculates the number of rides and average duration 
+  ,average_ride_length = mean(ride_length),.groups="drop") %>% # calculates the average duration
+  arrange(member_casual, day_of_week) #sort
+```
+
+**We can now display total rides in a day of the week for both casuals
+and members:**
+
+```{r}
+tripdata_clean %>%  
+
+ group_by(member_casual, day_of_week) %>% 
+
+ summarise(number_of_rides = n(), .groups="drop") %>% 
+
+ arrange(member_casual, day_of_week) %>% 
+
+ ggplot(aes(x = day_of_week, y = number_of_rides, fill = member_casual)) +
+
+ labs(title ="Total rides of Members and Casual riders ss Day of the week") +
+
+ geom_col(width=0.5, position = position_dodge(width=0.5)) +
+
+ scale_y_continuous(labels = function(x) format(x, scientific = FALSE))
+
+```
+
+**Let's look at number of bike rides per week**\
+
+```{r}
+tripdata_clean %>%
+  group_by(member_casual,day_of_week) %>%
+  dplyr::summarize(count_trips = n()) %>%  
+  ggplot(aes(x= day_of_week, y=count_trips, fill=member_casual, color=member_casual)) +
+    geom_bar(stat='identity', position = 'dodge') +
+    theme_bw()+
+    labs(title ="Number of bike rides per Week", x = "Day", y = "Count of Trips")
+```
+
+**And here is the number of bike rides per month**
+
+```{r}
+tripdata_clean %>%
+  group_by(member_casual,month) %>%
+  dplyr::summarize(count_trips = n()) %>%  
+  ggplot(aes(x= month, y=count_trips, fill=member_casual, color=member_casual)) +
+    geom_bar(stat='identity', position = 'dodge') +
+    theme_dark() +
+    labs(title ="Number of bike rides per month", x = "Month", y = "Count of Trips")
+```
+
+**What are the 10 most popular starting stations for casuals?**
+
+```{r}
+tripdata_clean %>%
+    group_by(member_casual,start_station_name) %>%
+    dplyr::summarise(number_of_ride = n()) %>%
+    filter(start_station_name !="", "casual"==member_casual) %>%
+    arrange(-number_of_ride) %>%
+    head(n=10) %>%
+    select(-member_casual)
+```
+
+**What are the 10 most popular starting stations for members?**
+
+```{r}
+tripdata_clean %>%
+group_by(member_casual,start_station_name) %>%
+dplyr::summarise(number_of_ride = n()) %>%
+filter(start_station_name !="", "member"==member_casual) %>%
+arrange(-number_of_ride) %>%
+head(n=10) %>%
+select(-member_casual)
+```
+
+# Summary
+
+Learned that a docked bicycle type is around 2 times as popular compared
+to casual and electric bikes. This applies to both casual and member
+bicycle users.
+
+Learned that Saturday and Sunday are the most popular riding days for
+casual riders.
+
+November through February have the least number of casual riders,
+perhaps due to cold winter months.
+
+May, July, and August have a particularly high number of Casual riders.
+
+The most popular stations for Casual riders in descending order are
+Streeter Dr & Grand Ave, Lake Shore Dr & Monroe St, Millennium Park,
+Theater on the Lake, Michigan Ave & Oak St.
+
+Conclusion: Based on the data analyzed I would recommend we focus our
+marketing effors for Casual Riders with these parameters 1, Increase
+marketing for docket bicycles 2. Heavier marketing from May through
+August 3. Focus marketing on weekends 4. Invest in marketing at the top
+5 stations as noted above. Top 10 station marketing would cover even
+more ground.
