@@ -1,0 +1,288 @@
+---
+title: "Rtutorial"
+author: "Miro Snejdr"
+date: "2022-09-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Basics
+
+How to get help?
+
+```{r}
+?function
+```
+
+You can use R like a calculator
+
+```{r}
+5+6
+```
+
+We can assign a value to an object:
+
+```{r}
+a <- 5
+b <- 6
+
+a+b #first way of counting these values
+sum(a+b) #another way, sum is a function
+```
+
+Creating variables with values. Ages is the variable:
+
+```{r}
+ages <-c(48, 62, 48, 87, 23)
+```
+
+Let's check the variable
+
+```{r}
+ages
+```
+
+We can sum (for example) all these values just by using the sum function and the name of the variable
+
+```{r}
+sum(ages)
+```
+
+Values can be text as well. Let's create another variable names:
+
+```{r}
+names <- c("richard", "john", "james", "edward", "donald")
+```
+
+And check it
+
+```{r}
+names
+```
+
+Let's create a data frame called friends by using the data.frame function:
+
+```{r}
+friends <- data.frame(names, ages)
+```
+
+Check:
+
+```{r}
+friends
+```
+
+```{r}
+View(friends) #shows the data frame in a table
+```
+
+```{r}
+str(friends) #shows a structure of the data frame
+```
+
+We can look at the particular variable in the data frame by using the dataframe\$variable:
+
+```{r}
+friends$names
+```
+
+We can also specify the specific subsets of the data frame.\
+dataframe[row,column]
+
+```{r}
+friends[4,2]
+```
+
+Leaving either position blank gives us all the columns for that row, or all rows for that column. Let's leave the column position blank
+
+```{r}
+friends[1, ] #show me all columns for the first row
+```
+
+## Datasets
+
+The data() function shows all available data sets in R:
+
+```{r}
+data()
+```
+
+View the content of the data set:
+
+```{r}
+View(UCBAdmissions)
+```
+
+View the data set in a separate windows:
+
+```{r}
+utils::View(UCBAdmissions)
+```
+
+### Install Tidyverse which contains the starwars data set
+
+Now we install the tidyverse library. We only need to install a library once.
+
+```{r}
+library(tidyverse)
+```
+
+Then we load this library so we can use its functions
+
+```{r}
+library(tidyverse)
+```
+
+This library contains a data set called starwars
+
+```{r}
+View(starwars)
+```
+
+Pipe operator %\>% means "and then", we use it when applying multiple functions to a data set.
+
+```{r}
+starwars %>%
+  filter(height > 150 & mass < 200) %>% #filter by these criteria 
+  mutate(height_in_meters = height/100) %>% #mutate means change. height_in_meters is the name of the new variable
+  select(height_in_meters, mass) %>% #what columns we want to display
+  arrange(mass) %>% #order the results by mass from lowest to highest value. we can put a minus sign to order then from highest to lowest
+  View() #displays this data set
+  #plot() #displays a plot. Use either View or plot, can't use both.
+  
+```
+Ways of displaying a data set called msleep:
+```{r}
+View(msleep) #dwhole data set
+glimpse(msleep) #overwiew - names, types of variables, column and row count
+head() #displays first 6 rows
+```
+What kind of a variable is it? \
+class(dataframe$variable)
+```{r}
+class(msleep$name)
+```
+Number of variables (technically number of columns)
+```{r}
+length(msleep)
+```
+How many rows (observations) in a particular variable (column)?\
+length(dataset$variable)
+```{r}
+length(msleep$name)
+```
+Show all variable names:
+```{r}
+names(msleep)
+#also possible to use colnames(msleep)
+```
+Show all unique variable names (displays all names that are at least once in the data set)
+```{r}
+unique(msleep$order)
+```
+Show all rows where there is at least one missing value:
+```{r}
+missing <- !complete.cases(msleep) 
+#create a new object called missing
+#the ! does the opposite, which means it displays the data that are NOT complete cases
+```
+Now let's display it:
+```{r}
+msleep[missing, ] #
+```
+
+## Clean
+```{r}
+starwars %>%
+select(name, height, mass) #show me only these variables (columns)
+```
+Or we can use numbers of the columns:
+```{r}
+starwars %>%
+  select(1:4) #show me first 4 variables
+```
+Show me all variables whose names end with color:
+```{r}
+starwars %>%
+  select(ends_with("color"))
+```
+
+Changing a variable name:
+```{r}
+#rename("new_name" = "original name")
+
+starwars %>%
+  rename("characters" = "name") %>% #rename name to characters
+  head() #and show me first 6 rows
+```
+Changing a variable type:
+
+```{r}
+#let's look at what variable is hair_color
+class(starwars$hair_color)
+```
+
+We can change color variable to a factor variable. Factors are variables with a limited number of different values, often refered to as categorical variables. There only a limited number of colors, so this it makes sense to set this variable to factor:
+```{r}
+starwars$hair_color <- as.factor(starwars$hair_color)
+#hair_color already exists, so we will override it
+```
+Check if this variable is a factor:
+```{r}
+class(starwars$hair_color)
+```
+Let's change it back to character by using mutate:
+```{r}
+starwars %>%
+  mutate(hair_color = as.character(hair_color)) %>%
+  glimpse() #check
+```
+
+```{r}
+starwars %>%
+  select(mass, sex) %>% #select these variables/columns
+  filter(mass < 55 & sex == "male") #for filtering we use ==
+```
+Recode data
+```{r}
+starwars %>%
+  select(sex) #this line is not necessary for this example
+mutate(sex = recode(sex, "male" = "man", "female" = "woman"))
+#we can create or write over existing variable, like here
+```
+
+This will create a new variable recoded_sex:
+```{r}
+starwars %>%
+mutate(recoded_sex = recode(sex, "male" = "man", "female" = "woman"))
+```
+
+### Dealing with missing data
+Check:
+```{r}
+mean(starwars$height)
+#can't calculate mean because there are missing data
+```
+Now we remove the rows with missing data for this variable using na.rm = TRUE
+```{r}
+mean(starwars$height, na.rm = TRUE) #remove NA values
+```
+Show only distinct values (don't show duplicates)
+```{r}
+friends %>% distinct()
+```
+### Conditional change
+Let's categorize height:
+```{r}
+starwars %>%
+  mutate(height_m = height/100) %>% #create new variable height_m
+  select(name, height, height_m) %>%
+  mutate(tallness = #create new variable tallness
+           if_else(height_m < 1,"short","tall"))
+         #if height_m < 1, then create this value called short, else create a value called tall
+```
+
+
